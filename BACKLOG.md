@@ -5,7 +5,7 @@ commit that delivers the item.
 
 ## Section 2A: Integration (waiter demand)
 
-- [ ] Add a `waiters` module with the demand curve `w(t) = w0 + A·t(12 − t)/36` and its derivative
+- [x] Add a `waiters` module with the demand curve `w(t) = w0 + A·t(12 − t)/36` and its derivative
 - [ ] Find the demand peak from `w'(t) = 0` and confirm it is a maximum with `w''(t)`
 - [ ] Compute total staff-hours in closed form (`12·w0 + 8A`) and the daily wage cost
 - [ ] Find the hours when a fixed roster is not enough (`t = 6 ± h`)
