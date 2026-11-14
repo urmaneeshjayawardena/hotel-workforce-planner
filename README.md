@@ -71,6 +71,7 @@ R = 15, 60 and 150.
 hotel_workforce/
   params.py   parameters derived from R
   cost.py     Section 1: housekeeper and overtime optimisation
+  waiters.py  Section 2A: waiter demand curve
   cli.py      command-line report
 tests/        pytest suite
 docs/         original problem statement
