@@ -76,6 +76,20 @@ def peak(params: HotelParams) -> DemandPeak:
     )
 
 
+def total_staff_hours(params: HotelParams) -> float:
+    """Area under w(t) over the day: 12*w0 + 8A.
+
+    The base contributes w0 for all 12 hours. The bump integrates to
+    A/36 * [6t^2 - t^3/3] from 0 to 12 = A/36 * (864 - 576) = 8A.
+    """
+    return OPEN_HOURS * base_demand(params) + 8 * amplitude(params)
+
+
+def daily_wage_cost(params: HotelParams) -> float:
+    """Total staff-hours paid at the hourly wage, in LKR."""
+    return total_staff_hours(params) * params.wage_lkr
+
+
 def _check_hour(t: float) -> None:
     if not 0 <= t <= OPEN_HOURS:
         raise ValueError(f"t must be between 0 and {OPEN_HOURS} hours")

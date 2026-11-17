@@ -7,7 +7,7 @@ commit that delivers the item.
 
 - [x] Add a `waiters` module with the demand curve `w(t) = w0 + A·t(12 − t)/36` and its derivative
 - [x] Find the demand peak from `w'(t) = 0` and confirm it is a maximum with `w''(t)`
-- [ ] Compute total staff-hours in closed form (`12·w0 + 8A`) and the daily wage cost
+- [x] Compute total staff-hours in closed form (`12·w0 + 8A`) and the daily wage cost
 - [ ] Find the hours when a fixed roster is not enough (`t = 6 ± h`)
 - [ ] Compute understaffed and idle staff-hours, with the self-check `total − under + idle = 12n`
 - [ ] Add a hand-written trapezoid rule and show its error shrinking as strips increase
