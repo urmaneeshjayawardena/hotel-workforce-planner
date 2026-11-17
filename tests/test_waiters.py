@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 import pytest
 
 from hotel_workforce import waiters
@@ -104,3 +106,31 @@ def test_rejects_hours_outside_opening_time(t):
         waiters.demand(params, t)
     with pytest.raises(ValueError):
         waiters.demand_rate(params, t)
+
+
+@pytest.mark.parametrize(
+    "rooms, staff_hours, wage_cost",
+    [(15, 36, 16_200), (60, 136, 61_200), (150, 344, 154_800)],
+)
+def test_staff_hours_and_wage_cost_match_problem_table(rooms, staff_hours, wage_cost):
+    params = from_rooms(rooms)
+
+    assert waiters.total_staff_hours(params) == staff_hours
+    assert waiters.daily_wage_cost(params) == wage_cost
+
+
+@pytest.mark.parametrize("rooms", [15, 60, 150, 300])
+def test_staff_hours_match_simpsons_rule(rooms):
+    # Simpson's rule is exact for a parabola, so one pair of strips is enough.
+    params = from_rooms(rooms)
+    simpson = 12 / 6 * (
+        waiters.demand(params, 0) + 4 * waiters.demand(params, 6) + waiters.demand(params, 12)
+    )
+
+    assert waiters.total_staff_hours(params) == pytest.approx(simpson)
+
+
+def test_wage_cost_follows_the_wage():
+    params = replace(from_rooms(60), wage_lkr=500)
+
+    assert waiters.daily_wage_cost(params) == 136 * 500
