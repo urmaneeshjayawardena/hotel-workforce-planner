@@ -6,6 +6,7 @@ t(12 - t)/36 is 0 at opening and closing and reaches 1 at t = 6, so w0 is the
 base demand and w0 + A is the peak.
 """
 
+import math
 from dataclasses import dataclass
 
 from .params import HotelParams
@@ -19,6 +20,18 @@ class DemandPeak:
     waiters: float
     curvature: float
     kind: str
+
+
+@dataclass(frozen=True)
+class ShortfallWindow:
+    """Hours when demand is above the roster, from start to end."""
+
+    start: float
+    end: float
+
+    @property
+    def hours(self) -> float:
+        return self.end - self.start
 
 
 def base_demand(params: HotelParams) -> float:
@@ -88,6 +101,27 @@ def total_staff_hours(params: HotelParams) -> float:
 def daily_wage_cost(params: HotelParams) -> float:
     """Total staff-hours paid at the hourly wage, in LKR."""
     return total_staff_hours(params) * params.wage_lkr
+
+
+def shortfall_window(params: HotelParams, roster: int | None = None) -> ShortfallWindow | None:
+    """When a fixed roster of n waiters is not enough, or None if it always is.
+
+    Solving w(t) = n gives t(12 - t) = 36(P - n)/A, so t = 6 +/- h with
+    h = 6*sqrt((P - n)/A). Demand only exceeds n between those two times.
+    """
+    n = params.roster if roster is None else roster
+    w0 = base_demand(params)
+    peak_waiters = w0 + amplitude(params)
+
+    # Touching the peak exactly is enough, so the roster has to be below it.
+    if n >= peak_waiters:
+        return None
+    # Below the base there is no crossing: demand is above n all day.
+    if n < w0:
+        return ShortfallWindow(0.0, float(OPEN_HOURS))
+
+    h = 6 * math.sqrt((peak_waiters - n) / amplitude(params))
+    return ShortfallWindow(6 - h, 6 + h)
 
 
 def _check_hour(t: float) -> None:
