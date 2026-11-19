@@ -134,3 +134,50 @@ def test_wage_cost_follows_the_wage():
     params = replace(from_rooms(60), wage_lkr=500)
 
     assert waiters.daily_wage_cost(params) == 136 * 500
+
+
+@pytest.mark.parametrize(
+    "rooms, start, end",
+    [(15, 2.54, 9.46), (60, 2.87, 9.13), (150, 2.79, 9.21)],
+)
+def test_shortfall_window_matches_problem_table(rooms, start, end):
+    window = waiters.shortfall_window(from_rooms(rooms))
+
+    assert window.start == pytest.approx(start, abs=0.005)
+    assert window.end == pytest.approx(end, abs=0.005)
+
+
+@pytest.mark.parametrize("rooms", [15, 60, 150, 300])
+def test_demand_equals_roster_at_both_ends_of_the_window(rooms):
+    params = from_rooms(rooms)
+    window = waiters.shortfall_window(params)
+
+    assert waiters.demand(params, window.start) == pytest.approx(params.roster)
+    assert waiters.demand(params, window.end) == pytest.approx(params.roster)
+    assert waiters.demand(params, 6) > params.roster
+
+
+def test_window_is_centred_on_the_peak():
+    window = waiters.shortfall_window(from_rooms(60))
+
+    assert (window.start + window.end) / 2 == pytest.approx(6)
+    assert window.hours == pytest.approx(2 * 6 * (3 / 11) ** 0.5)
+
+
+def test_a_bigger_roster_shrinks_the_window():
+    params = from_rooms(60)
+    widths = [waiters.shortfall_window(params, roster=n).hours for n in (5, 8, 12, 14)]
+
+    assert widths == sorted(widths, reverse=True)
+
+
+@pytest.mark.parametrize("roster", [15, 20])
+def test_roster_at_or_above_peak_is_always_enough(roster):
+    assert waiters.shortfall_window(from_rooms(60), roster=roster) is None
+
+
+@pytest.mark.parametrize("roster", [4, 2])
+def test_roster_at_or_below_base_is_short_all_day(roster):
+    window = waiters.shortfall_window(from_rooms(60), roster=roster)
+
+    assert (window.start, window.end) == pytest.approx((0, 12))
