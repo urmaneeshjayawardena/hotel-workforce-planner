@@ -181,3 +181,82 @@ def test_roster_at_or_below_base_is_short_all_day(roster):
     window = waiters.shortfall_window(from_rooms(60), roster=roster)
 
     assert (window.start, window.end) == pytest.approx((0, 12))
+
+
+@pytest.mark.parametrize(
+    "rooms, understaffed, idle",
+    [(15, 4.62, 4.62), (60, 12.53, 20.53), (150, 34.21, 50.21)],
+)
+def test_understaffed_and_idle_hours_match_problem_table(rooms, understaffed, idle):
+    params = from_rooms(rooms)
+
+    assert waiters.understaffed_hours(params) == pytest.approx(understaffed, abs=0.005)
+    assert waiters.idle_hours(params) == pytest.approx(idle, abs=0.005)
+
+
+@pytest.mark.parametrize("rooms", [15, 60, 150])
+def test_understaffed_hours_match_closed_form(rooms):
+    # The problem statement's (4/3)*h*(P - n), valid when the window is inside the day.
+    params = from_rooms(rooms)
+    h = waiters.shortfall_window(params).hours / 2
+
+    assert waiters.understaffed_hours(params) == pytest.approx(
+        4 / 3 * h * (params.peak_waiters - params.roster)
+    )
+
+
+@pytest.mark.parametrize("rooms", [15, 60, 150, 300])
+@pytest.mark.parametrize("roster_offset", [-20, -5, 0, 3, 20])
+def test_understaffed_and_idle_match_simpsons_rule(rooms, roster_offset):
+    # Simpson's rule is exact on each piece where w - n keeps its sign.
+    params = from_rooms(rooms)
+    n = max(params.roster + roster_offset, 0)
+    window = waiters.shortfall_window(params, roster=n)
+    cuts = [0.0, 12.0] if window is None else [0.0, window.start, window.end, 12.0]
+
+    under = idle = 0.0
+    for lo, hi in zip(cuts, cuts[1:]):
+        area = (hi - lo) / 6 * sum(
+            weight * (waiters.demand(params, t) - n)
+            for weight, t in ((1, lo), (4, (lo + hi) / 2), (1, hi))
+        )
+        if area > 0:
+            under += area
+        else:
+            idle -= area
+
+    assert waiters.understaffed_hours(params, roster=n) == pytest.approx(under, abs=1e-9)
+    assert waiters.idle_hours(params, roster=n) == pytest.approx(idle, abs=1e-9)
+
+
+@pytest.mark.parametrize("rooms", [1, 15, 60, 150, 300])
+@pytest.mark.parametrize("roster", [None, 0, 2, 8, 12, 15, 40])
+def test_staff_hours_balance_holds(rooms, roster):
+    assert waiters.staff_hours_balance(from_rooms(rooms), roster=roster)
+
+
+def test_staff_hours_balance_for_r60_matches_problem_statement():
+    params = from_rooms(60)
+    balance = (
+        waiters.total_staff_hours(params)
+        - waiters.understaffed_hours(params)
+        + waiters.idle_hours(params)
+    )
+
+    assert balance == pytest.approx(144)
+
+
+@pytest.mark.parametrize("roster", [15, 20])
+def test_roster_at_or_above_peak_is_never_understaffed(roster):
+    params = from_rooms(60)
+
+    assert waiters.understaffed_hours(params, roster=roster) == 0
+    assert waiters.idle_hours(params, roster=roster) == pytest.approx(12 * roster - 136)
+
+
+@pytest.mark.parametrize("roster", [4, 2])
+def test_roster_at_or_below_base_is_never_idle(roster):
+    params = from_rooms(60)
+
+    assert waiters.idle_hours(params, roster=roster) == pytest.approx(0, abs=1e-9)
+    assert waiters.understaffed_hours(params, roster=roster) == pytest.approx(136 - 12 * roster)
