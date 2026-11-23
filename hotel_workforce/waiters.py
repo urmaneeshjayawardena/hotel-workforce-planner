@@ -109,7 +109,7 @@ def shortfall_window(params: HotelParams, roster: int | None = None) -> Shortfal
     Solving w(t) = n gives t(12 - t) = 36(P - n)/A, so t = 6 +/- h with
     h = 6*sqrt((P - n)/A). Demand only exceeds n between those two times.
     """
-    n = params.roster if roster is None else roster
+    n = _roster(params, roster)
     w0 = base_demand(params)
     peak_waiters = w0 + amplitude(params)
 
@@ -122,6 +122,54 @@ def shortfall_window(params: HotelParams, roster: int | None = None) -> Shortfal
 
     h = 6 * math.sqrt((peak_waiters - n) / amplitude(params))
     return ShortfallWindow(6 - h, 6 + h)
+
+
+def understaffed_hours(params: HotelParams, roster: int | None = None) -> float:
+    """Staff-hours of demand the roster cannot cover: the area where w(t) > n.
+
+    Writing w - n = (P - n) - A(t - 6)^2/36 and integrating over 6 +/- k gives
+    2k(P - n) - A*k^3/54. With k = h this is the problem's (4/3)*h*(P - n); using
+    the window's own half-width also covers rosters that are short all day.
+    """
+    n = _roster(params, roster)
+    k = _shortfall_half_width(params, n)
+    peak_waiters = base_demand(params) + amplitude(params)
+    return 2 * k * (peak_waiters - n) - amplitude(params) * k**3 / 54
+
+
+def idle_hours(params: HotelParams, roster: int | None = None) -> float:
+    """Staff-hours the roster is paid for but not needed: the area where n > w(t).
+
+    This is the integral of n - w over the two tails [0, 6 - k] and [6 + k, 12].
+    Each tail gives (n - P)(6 - k) + A(216 - k^3)/108, and the curve is
+    symmetric about t = 6, so the day is twice that.
+    """
+    n = _roster(params, roster)
+    k = _shortfall_half_width(params, n)
+    peak_waiters = base_demand(params) + amplitude(params)
+    one_tail = (n - peak_waiters) * (6 - k) + amplitude(params) * (216 - k**3) / 108
+    return 2 * one_tail
+
+
+def staff_hours_balance(params: HotelParams, roster: int | None = None) -> bool:
+    """Self-check: total - understaffed + idle must equal the 12n hours rostered."""
+    n = _roster(params, roster)
+    balance = (
+        total_staff_hours(params)
+        - understaffed_hours(params, n)
+        + idle_hours(params, n)
+    )
+    return math.isclose(balance, OPEN_HOURS * n, abs_tol=1e-9)
+
+
+def _shortfall_half_width(params: HotelParams, roster: int) -> float:
+    """k such that the roster falls short between 6 - k and 6 + k (0 if never)."""
+    window = shortfall_window(params, roster)
+    return 0.0 if window is None else window.hours / 2
+
+
+def _roster(params: HotelParams, roster: int | None) -> int:
+    return params.roster if roster is None else roster
 
 
 def _check_hour(t: float) -> None:

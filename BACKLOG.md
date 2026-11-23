@@ -9,7 +9,7 @@ commit that delivers the item.
 - [x] Find the demand peak from `w'(t) = 0` and confirm it is a maximum with `w''(t)`
 - [x] Compute total staff-hours in closed form (`12·w0 + 8A`) and the daily wage cost
 - [x] Find the hours when a fixed roster is not enough (`t = 6 ± h`)
-- [ ] Compute understaffed and idle staff-hours, with the self-check `total − under + idle = 12n`
+- [x] Compute understaffed and idle staff-hours, with the self-check `total − under + idle = 12n`
 - [ ] Add a hand-written trapezoid rule and show its error shrinking as strips increase
 - [ ] Verify the staff-hour integral numerically with `scipy.integrate.quad`
 - [ ] Verify the staff-hour integral exactly with SymPy
