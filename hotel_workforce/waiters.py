@@ -7,6 +7,7 @@ base demand and w0 + A is the peak.
 """
 
 import math
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
 from .params import HotelParams
@@ -32,6 +33,15 @@ class ShortfallWindow:
     @property
     def hours(self) -> float:
         return self.end - self.start
+
+
+@dataclass(frozen=True)
+class TrapezoidStep:
+    """One row of the trapezoid convergence table."""
+
+    strips: int
+    estimate: float
+    error: float
 
 
 def base_demand(params: HotelParams) -> float:
@@ -101,6 +111,45 @@ def total_staff_hours(params: HotelParams) -> float:
 def daily_wage_cost(params: HotelParams) -> float:
     """Total staff-hours paid at the hourly wage, in LKR."""
     return total_staff_hours(params) * params.wage_lkr
+
+
+def trapezoid(f: Callable[[float], float], lo: float, hi: float, strips: int) -> float:
+    """Integrate f from lo to hi with the trapezoid rule on equal strips.
+
+    h * (f(t0)/2 + f(t1) + ... + f(t_{n-1}) + f(tn)/2), with h = (hi - lo)/n.
+    """
+    if strips < 1:
+        raise ValueError("strips must be a positive integer")
+    width = (hi - lo) / strips
+    inner = sum(f(lo + i * width) for i in range(1, strips))
+    return width * ((f(lo) + f(hi)) / 2 + inner)
+
+
+def trapezoid_staff_hours(params: HotelParams, strips: int) -> float:
+    """Total staff-hours estimated by the trapezoid rule over the day."""
+    return trapezoid(lambda t: demand(params, t), 0, OPEN_HOURS, strips)
+
+
+def trapezoid_error(params: HotelParams, strips: int) -> float:
+    """Exact total minus the trapezoid estimate.
+
+    For a parabola the trapezoid error is exactly -(12^3 / 12n^2) * w'' =
+    8A/n^2: positive because the chords sit under a curve that bends down,
+    and divided by four each time the strips double.
+    """
+    return total_staff_hours(params) - trapezoid_staff_hours(params, strips)
+
+
+def trapezoid_convergence(
+    params: HotelParams, strip_counts: Iterable[int] = (1, 2, 4, 8, 16, 32)
+) -> list[TrapezoidStep]:
+    """Trapezoid estimate and error for each strip count, to show the error shrinking."""
+    exact = total_staff_hours(params)
+    steps = []
+    for n in strip_counts:
+        estimate = trapezoid_staff_hours(params, n)
+        steps.append(TrapezoidStep(strips=n, estimate=estimate, error=exact - estimate))
+    return steps
 
 
 def shortfall_window(params: HotelParams, roster: int | None = None) -> ShortfallWindow | None:

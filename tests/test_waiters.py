@@ -130,6 +130,62 @@ def test_staff_hours_match_simpsons_rule(rooms):
     assert waiters.total_staff_hours(params) == pytest.approx(simpson)
 
 
+def test_trapezoid_is_exact_for_a_straight_line():
+    assert waiters.trapezoid(lambda t: 2 * t + 1, 0, 3, 1) == pytest.approx(12)
+
+
+def test_trapezoid_rejects_zero_strips():
+    with pytest.raises(ValueError):
+        waiters.trapezoid(lambda t: t, 0, 1, 0)
+
+
+@pytest.mark.parametrize("rooms, w0", [(15, 1), (60, 4), (150, 10)])
+def test_one_strip_only_sees_the_base_demand(rooms, w0):
+    # The single chord joins w(0) = w(12) = w0, missing the whole bump.
+    params = from_rooms(rooms)
+
+    assert waiters.trapezoid_staff_hours(params, 1) == pytest.approx(12 * w0)
+
+
+@pytest.mark.parametrize("rooms, staff_hours", [(15, 36), (60, 136), (150, 344)])
+def test_trapezoid_approaches_problem_table_total(rooms, staff_hours):
+    params = from_rooms(rooms)
+
+    assert waiters.trapezoid_staff_hours(params, 1000) == pytest.approx(staff_hours, abs=1e-3)
+
+
+@pytest.mark.parametrize("rooms, amplitude", [(15, 3), (60, 11), (150, 28)])
+@pytest.mark.parametrize("strips", [1, 2, 3, 4, 10, 64])
+def test_trapezoid_error_is_8a_over_n_squared(rooms, amplitude, strips):
+    params = from_rooms(rooms)
+
+    assert waiters.trapezoid_error(params, strips) == pytest.approx(8 * amplitude / strips**2)
+
+
+def test_r60_convergence_table():
+    steps = waiters.trapezoid_convergence(from_rooms(60), strip_counts=(1, 2, 4, 8))
+
+    assert [s.strips for s in steps] == [1, 2, 4, 8]
+    assert [s.estimate for s in steps] == pytest.approx([48, 114, 130.5, 134.625])
+    assert [s.error for s in steps] == pytest.approx([88, 22, 5.5, 1.375])
+
+
+@pytest.mark.parametrize("rooms", [15, 60, 150, 300])
+def test_error_shrinks_fourfold_when_strips_double(rooms):
+    steps = waiters.trapezoid_convergence(from_rooms(rooms))
+    errors = [s.error for s in steps]
+
+    assert all(e > 0 for e in errors)
+    for coarse, fine in zip(errors, errors[1:]):
+        assert coarse / fine == pytest.approx(4)
+
+
+def test_flat_curve_has_no_trapezoid_error():
+    params = from_rooms(1)
+
+    assert all(s.error == 0 for s in waiters.trapezoid_convergence(params))
+
+
 def test_wage_cost_follows_the_wage():
     params = replace(from_rooms(60), wage_lkr=500)
 
