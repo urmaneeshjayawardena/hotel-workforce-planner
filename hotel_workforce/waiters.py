@@ -10,6 +10,8 @@ import math
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
+from scipy.integrate import quad
+
 from .params import HotelParams
 
 OPEN_HOURS = 12
@@ -41,6 +43,15 @@ class TrapezoidStep:
 
     strips: int
     estimate: float
+    error: float
+
+
+@dataclass(frozen=True)
+class QuadEstimate:
+    """A numerical integral from quad, with its own error bound and the true error."""
+
+    estimate: float
+    error_bound: float
     error: float
 
 
@@ -150,6 +161,16 @@ def trapezoid_convergence(
         estimate = trapezoid_staff_hours(params, n)
         steps.append(TrapezoidStep(strips=n, estimate=estimate, error=exact - estimate))
     return steps
+
+
+def quad_staff_hours(params: HotelParams) -> QuadEstimate:
+    """Total staff-hours from scipy.integrate.quad, checked against 12*w0 + 8A."""
+    estimate, error_bound = quad(lambda t: demand(params, t), 0, OPEN_HOURS)
+    return QuadEstimate(
+        estimate=estimate,
+        error_bound=error_bound,
+        error=total_staff_hours(params) - estimate,
+    )
 
 
 def shortfall_window(params: HotelParams, roster: int | None = None) -> ShortfallWindow | None:

@@ -11,7 +11,7 @@ commit that delivers the item.
 - [x] Find the hours when a fixed roster is not enough (`t = 6 ± h`)
 - [x] Compute understaffed and idle staff-hours, with the self-check `total − under + idle = 12n`
 - [x] Add a hand-written trapezoid rule and show its error shrinking as strips increase
-- [ ] Verify the staff-hour integral numerically with `scipy.integrate.quad`
+- [x] Verify the staff-hour integral numerically with `scipy.integrate.quad`
 - [ ] Verify the staff-hour integral exactly with SymPy
 - [ ] Add the waiter section to the command-line report
 
