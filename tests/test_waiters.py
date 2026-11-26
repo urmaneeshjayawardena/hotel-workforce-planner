@@ -186,6 +186,27 @@ def test_flat_curve_has_no_trapezoid_error():
     assert all(s.error == 0 for s in waiters.trapezoid_convergence(params))
 
 
+@pytest.mark.parametrize("rooms, staff_hours", [(15, 36), (60, 136), (150, 344)])
+def test_quad_matches_problem_table_total(rooms, staff_hours):
+    result = waiters.quad_staff_hours(from_rooms(rooms))
+
+    assert result.estimate == pytest.approx(staff_hours, abs=1e-9)
+
+
+@pytest.mark.parametrize("rooms", [1, 15, 60, 150, 300])
+def test_quad_agrees_with_closed_form_within_its_error_bound(rooms):
+    result = waiters.quad_staff_hours(from_rooms(rooms))
+
+    assert abs(result.error) <= max(result.error_bound, 1e-12)
+
+
+def test_quad_beats_fine_trapezoid():
+    params = from_rooms(60)
+
+    quad_error = abs(waiters.quad_staff_hours(params).error)
+    assert quad_error < waiters.trapezoid_error(params, 64)
+
+
 def test_wage_cost_follows_the_wage():
     params = replace(from_rooms(60), wage_lkr=500)
 
