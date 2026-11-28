@@ -10,11 +10,14 @@ import math
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
+import sympy
 from scipy.integrate import quad
 
 from .params import HotelParams
 
 OPEN_HOURS = 12
+
+_HOUR, _BASE, _AMPLITUDE = sympy.symbols("t w0 A")
 
 
 @dataclass(frozen=True)
@@ -170,6 +173,25 @@ def quad_staff_hours(params: HotelParams) -> QuadEstimate:
         estimate=estimate,
         error_bound=error_bound,
         error=total_staff_hours(params) - estimate,
+    )
+
+
+def symbolic_staff_hours() -> sympy.Expr:
+    """Integrate w(t) over the day with w0 and A kept as symbols: 12*w0 + 8*A."""
+    curve = _BASE + _AMPLITUDE * _HOUR * (OPEN_HOURS - _HOUR) / 36
+    return sympy.expand(sympy.integrate(curve, (_HOUR, 0, OPEN_HOURS)))
+
+
+def sympy_staff_hours(params: HotelParams) -> sympy.Rational:
+    """Exact total staff-hours: the symbolic integral evaluated at this hotel's w0 and A.
+
+    Rational() keeps the inputs exact, so the result has no rounding error at all.
+    """
+    return symbolic_staff_hours().subs(
+        {
+            _BASE: sympy.Rational(base_demand(params)),
+            _AMPLITUDE: sympy.Rational(amplitude(params)),
+        }
     )
 
 
