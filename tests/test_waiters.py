@@ -1,6 +1,7 @@
 from dataclasses import replace
 
 import pytest
+import sympy
 
 from hotel_workforce import waiters
 from hotel_workforce.params import from_rooms
@@ -205,6 +206,34 @@ def test_quad_beats_fine_trapezoid():
 
     quad_error = abs(waiters.quad_staff_hours(params).error)
     assert quad_error < waiters.trapezoid_error(params, 64)
+
+
+def test_symbolic_integral_is_12_w0_plus_8_a():
+    w0, a = sympy.symbols("w0 A")
+
+    assert sympy.simplify(waiters.symbolic_staff_hours() - (12 * w0 + 8 * a)) == 0
+
+
+@pytest.mark.parametrize("rooms, staff_hours", [(15, 36), (60, 136), (150, 344)])
+def test_sympy_matches_problem_table_total_exactly(rooms, staff_hours):
+    result = waiters.sympy_staff_hours(from_rooms(rooms))
+
+    assert result.is_Rational
+    assert result == staff_hours
+
+
+@pytest.mark.parametrize("rooms", [1, 15, 60, 150, 300])
+def test_sympy_agrees_with_closed_form(rooms):
+    params = from_rooms(rooms)
+
+    assert waiters.sympy_staff_hours(params) == waiters.total_staff_hours(params)
+
+
+def test_sympy_stays_exact_for_fractional_demand():
+    # 0.5 and 0.25 are exact in binary, so 12*0.5 + 8*0.25 must come out as exactly 8.
+    params = replace(from_rooms(60), base_waiters=0.5, peak_waiters=0.75)
+
+    assert waiters.sympy_staff_hours(params) == sympy.Integer(8)
 
 
 def test_wage_cost_follows_the_wage():
